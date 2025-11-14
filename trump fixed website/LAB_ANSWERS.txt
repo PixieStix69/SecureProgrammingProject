@@ -1,0 +1,148 @@
+===============================================================================
+SECURE PROGRAMMING LAB - BRUTE-FORCE AUTHENTICATION
+LAB ANSWERS TEMPLATE
+===============================================================================
+
+Student Name: [Your Name]
+Student ID: [Your ID]
+Date: [Date]
+
+===============================================================================
+TASK 1: Identify Parameters and HTTP Method
+===============================================================================
+
+Question: Identify the parameters in the request where the username and 
+password are sent. What HTTP method is used (GET or POST)? Why is this 
+important in the context of authentication security?
+
+Answer:
+- Parameters: username and password
+- HTTP Method: POST
+- Importance: POST is more secure than GET because:
+  1. POST data is sent in the request body, not visible in the URL
+  2. GET parameters appear in browser history and server logs
+  3. URLs with GET parameters can be bookmarked/shared, exposing credentials
+  4. However, POST alone does not prevent brute-force attacks without 
+     additional security measures like rate limiting or CAPTCHA
+
+===============================================================================
+QUESTION 1: Parameter Identification Importance
+===============================================================================
+
+Question: Why is it essential to correctly identify the parameters you want 
+to brute-force?
+
+Answer:
+It is essential to correctly identify the parameters because:
+1. The attack tool needs to know exactly which fields to modify during the 
+   brute-force attack
+2. Incorrect parameter names will result in failed authentication attempts 
+   that don't actually test valid credentials
+3. The server expects specific parameter names (in this case 'username' and 
+   'password') as defined in the login form
+4. Misidentifying parameters wastes time and computational resources
+5. May trigger security alerts or rate limiting if too many malformed 
+   requests are sent
+
+===============================================================================
+QUESTION 2: Identifying Successful Login Attempts
+===============================================================================
+
+Question: How did you identify the successful login attempt(s) from the 
+Intruder results?
+
+Answer:
+Successful login attempts were identified by analyzing:
+
+1. Status Code:
+   - Successful: 302 (redirect to profile page)
+   - Failed: 200 (page reload with error message)
+
+2. Response Length:
+   - Successful logins had different response lengths compared to failed 
+     attempts
+   - Failed attempts all had similar lengths (around 2145 bytes)
+   - Successful attempts had shorter lengths (around 219 bytes for redirect)
+
+3. Response Content:
+   - Failed attempts contained "Invalid Credentials. Please try again."
+   - Successful attempts did not contain this error message
+   - Successful attempts contained redirect headers to /profile/<user_id>
+
+4. Pattern Recognition:
+   - Most attempts showed consistent failure patterns
+   - Anomalies in the above metrics indicated successful authentication
+
+Specific successful credentials found:
+[List the username:password combinations you found]
+Example: Holmes:MEC15DBF3XD
+
+===============================================================================
+QUESTION 3: Post-Login Page
+===============================================================================
+
+Question: What page on the Coffeeshop website are you on now?
+
+Answer:
+After successful login, I was redirected to the Profile Page at the URL:
+http://127.0.0.1:5000/profile/<user_id>
+
+This page displays:
+- User information (username, email, about section)
+- Card details associated with the user account
+- User-specific content and navigation options
+
+The redirect confirms successful authentication as the application created
+a session for the authenticated user and granted access to protected resources.
+
+===============================================================================
+ADDITIONAL OBSERVATIONS
+===============================================================================
+
+Vulnerabilities Identified:
+1. SQL Injection: The login query uses string interpolation instead of 
+   parameterized queries (line 143 in app.py)
+   
+2. No Rate Limiting: The application allows unlimited login attempts without
+   any delays or restrictions
+   
+3. No Account Lockout: Failed login attempts do not trigger account lockout
+   mechanisms
+   
+4. No CAPTCHA: No mechanism to prevent automated brute-force attacks
+
+5. Weak Password Storage: Passwords appear to be stored in plaintext in the
+   database (should use bcrypt or similar hashing)
+
+Recommended Mitigations:
+1. Implement rate limiting (e.g., Flask-Limiter)
+2. Add account lockout after N failed attempts
+3. Implement CAPTCHA after failed login attempts
+4. Use parameterized SQL queries to prevent SQL injection
+5. Hash passwords using bcrypt or Argon2
+6. Implement Multi-Factor Authentication (MFA)
+7. Add logging and monitoring for suspicious login patterns
+8. Implement IP-based blocking for repeated failed attempts
+
+===============================================================================
+TOOLS USED
+===============================================================================
+
+Primary Tool: [Burp Suite Community Edition / Python Script]
+Version: [Version number]
+Attack Type: Cluster Bomb (tests all username/password combinations)
+Total Attempts: [Number of attempts]
+Successful Logins: [Number found]
+Time Taken: [Duration]
+
+===============================================================================
+CONCLUSION
+===============================================================================
+
+This lab successfully demonstrated how vulnerable authentication systems can
+be compromised through brute-force attacks. The lack of security controls
+such as rate limiting, account lockout, and CAPTCHA made the attack trivial
+to execute. The findings highlight the importance of implementing multiple
+layers of security (defense in depth) to protect authentication mechanisms.
+
+===============================================================================
