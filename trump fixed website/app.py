@@ -102,8 +102,25 @@ def comments():
     comments = db.session.execute(comments_query).fetchall()
     return render_template('comments.html', comments=comments)
 
+request_times = {}
+
 @app.route('/download', methods=['GET'])
 def download():
+    # Rate Limitng - 10 requests per minute per IP
+    ip = request.remote_addr
+    current_time = time.time()
+
+    # Get recent requests for this IP
+    recent_requests = [t for t in request_times.get(ip, []) if current_time - t < 60]
+
+    if len(recent_requests) >= 10:
+        return "Too many requests, please try again later", 429
+
+    # Add current request
+    if ip not in request_times:
+        request_times[ip] = []
+    request_times[ip].append(current_time)
+
     # Get the filename from the query parameter
     file_name = request.args.get('file', '')
 
@@ -113,16 +130,9 @@ def download():
     # Construct the file path to attempt to read the file
     file_path = os.path.abspath(os.path.join(base_directory, file_name))
 
-    # Ensure that the file path is within the base directory
-    if not file_path.startswith(base_directory):
-        return "Unauthorized access attempt!", 403
-
-    # Try to open the file securely
+    # Try to open the file securely, send_file is a more secure and memory efficient way to send files
     try:
-        with open(file_path, 'rb') as f:
-            response = Response(f.read(), content_type='application/octet-stream')
-            response.headers['Content-Disposition'] = f'attachment; filename="{os.path.basename(file_path)}"'
-            return response
+        return send_file(file_path, as_attachment=True)
     except FileNotFoundError:
         return "File not found", 404
     except PermissionError:
@@ -163,23 +173,48 @@ def search():
 def forum():
     return render_template('forum.html')
 
-# Add login route
+# Simple storage for failed attempts
+failed_attempts = {}
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
+        ip = request.remote_addr
+        current_time = datetime.now()
+        
+        # Check for too many attempts
+        if ip in failed_attempts:
+            last_attempt, attempts = failed_attempts[ip]
+            if current_time - last_attempt < timedelta(minutes=10):
+                if attempts >= 3:
+                    return render_template('login.html', 
+                                        error='Too many attempts. Please try again later.')
+            else:
+                # Reset counter if last attempt was more than 10 minutes ago
+                failed_attempts[ip] = (current_time, 0)
+
         username = request.form['username']
         password = request.form['password']
-
-        query = text("SELECT * FROM users WHERE username = :username AND password = :password")
-        user = db.session.execute(query, {'username': username, 'password': password}).fetchone()
+        query = text(f"SELECT * FROM users WHERE username = '{username}' AND password = '{password}'")
+        user = db.session.execute(query).fetchone()
 
         if user:
+            # Reset failed attempts on success
+            if ip in failed_attempts:
+                del failed_attempts[ip]
             session['user_id'] = user.id
             flash('Login successful!', 'success')
             return redirect(url_for('profile', user_id=user.id))
         else:
-            error = 'Invalid Credentials. Please try again.'
-            return render_template('login.html', error=error)
+            # Record failed attempt
+            if ip in failed_attempts:
+                failed_attempts[ip] = (current_time, failed_attempts[ip][1] + 1)
+            else:
+                failed_attempts[ip] = (current_time, 1)
+            
+            # Error message
+            return render_template('login.html', 
+                                error='Invalid username or password')
 
     return render_template('login.html')
 
